@@ -1,0 +1,97 @@
+version: "3.1"
+
+services:
+  db:
+    image: mysql:latest
+    container_name: mysql
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3308:3306"
+    volumes:
+      - ./mysql:/app/mysql
+    environment:
+      MYSQL_DATABASE: test
+      MYSQL_USER: karbura
+      MYSQL_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: root
+      SERVICE_TAGS: prod
+      SERVICE_NAME: mysql
+    networks:
+      - karbura_network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: '4G'
+        reservations:
+          cpus: '1'
+          memory: '2G'
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+  laravel-api:
+    build:
+      context: ./laravel-api
+      dockerfile: Dockerfile
+    # container_name: php
+    volumes:
+      - ./api:/app/api
+    ports:
+      - "8000:80"
+    environment:
+      APP_NAME: karbura
+      APP_ENV: prod
+      APP_KEY: key
+      APP_DEBUG: true
+      APP_URL: localhost
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: test 
+      DB_USERNAME: root
+      DB_PASSWORD: root
+    depends_on:
+      - db
+    networks:
+      - karbura_network
+    deploy:
+      # replicas: 2
+      resources:
+        limits:
+          cpus: '1'
+          memory: 500M
+        reservations:
+          cpus: '0.25'
+          memory: 20M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+  next-app:
+    container_name: next-api
+    build:
+      context: ./next-app
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - laravel-api
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: '4G'
+        reservations:
+          cpus: '1'
+          memory: '2G'
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+networks:
+  karbura_network:
